@@ -20,10 +20,6 @@ void AMPGameModeBase::BeginPlay()
 
 	// 정답 숫자 생성 및 저장
 	SecretNumber = GenerateSecretNumber();
-
-	// 턴 관련 초기화
-	CurrentTurnPlayer = nullptr;
-	CurrentPlayerIndex = 0;
 }
 
 void AMPGameModeBase::OnPostLogin(AController* NewPlayer)
@@ -101,7 +97,7 @@ FString AMPGameModeBase::GenerateSecretNumber()
 	}
 
 	// 정답 숫자 반환
-	UE_LOG(LogTemp, Error, TEXT("Secret Number : %s"), *Result);
+	UE_LOG(MultiMacros, Error, TEXT("Secret Number : %s"), *Result);
 	return Result;
 }
 
@@ -123,9 +119,9 @@ void AMPGameModeBase::StartPlayerTurn(AMPPlayerController* InCurrentPlayerContro
 					Player->NotificationText = FText::FromString
 					(
 						FString::Printf(TEXT("Your Turn! Time: %d sec (Attempts: %d/%d)"), 
-							FMath::CeilToInt(PlayerState->TurnRemainingTime),
-							EachPlayerState->CurrentGuessCount,
-							EachPlayerState->MaxGuessCount)
+						FMath::CeilToInt(PlayerState->TurnRemainingTime),
+						EachPlayerState->CurrentGuessCount,
+						EachPlayerState->MaxGuessCount)
 					);
 				}
 				else
@@ -134,9 +130,9 @@ void AMPGameModeBase::StartPlayerTurn(AMPPlayerController* InCurrentPlayerContro
 					Player->NotificationText = FText::FromString
 					(
 						FString::Printf(TEXT("%s's Turn - Please wait (Your Attempts: %d/%d)"), 
-							*PlayerState->PlayerName,
-							EachPlayerState->CurrentGuessCount,
-							EachPlayerState->MaxGuessCount)
+						*PlayerState->PlayerName,
+						EachPlayerState->CurrentGuessCount,
+						EachPlayerState->MaxGuessCount)
 					);
 				}
 			}
@@ -193,9 +189,9 @@ void AMPGameModeBase::UpdateTurnUI(AMPPlayerController* InCurrentPlayerControlle
 		InCurrentPlayerController->NotificationText = FText::FromString
 		(
 			FString::Printf(TEXT("Your Turn! Time: %d sec (Attempts: %d/%d)"), 
-				FMath::CeilToInt(PlayerState->TurnRemainingTime),
-				PlayerState->CurrentGuessCount,
-				PlayerState->MaxGuessCount)
+			FMath::CeilToInt(PlayerState->TurnRemainingTime),
+			PlayerState->CurrentGuessCount,
+			PlayerState->MaxGuessCount)
 		);
 	}
 }
@@ -210,23 +206,6 @@ void AMPGameModeBase::EndPlayerTurn(AMPPlayerController* InCurrentPlayerControll
 			GetWorldTimerManager().ClearTimer(*TimerHandle);
 		}
 		PlayerTurnTimers.Remove(InCurrentPlayerController);
-	}
-
-	// 무승부 체크
-	if (IsDraw())
-	{
-		BroadcastNotification(TEXT("Draw..."));
-		
-		// 3초 후에 게임 초기화 호출
-		GetWorldTimerManager().SetTimer
-		(
-			TimerHandle_ResetGame,          
-			this,                       
-			&AMPGameModeBase::ResetGame, 
-			3.0f,                      
-			false                       
-		);
-		return;
 	}
 	
 	// 다음 플레이어 턴 시작 로직
@@ -330,16 +309,8 @@ void AMPGameModeBase::PrintChatMessage(AMPPlayerController* InChattingPlayerCont
 		// 스트라이크 수로 게임 상태 판정
 		const int32 StrikeCount = FCString::Atoi(*Result.Left(1));
 	
-		// 게임 종료 체크
-		if (StrikeCount == 3)
-		{
-			BroadcastChatMessageByRPC(FinalMessage);
-			HandleWin(InChattingPlayerController);
-			return;
-		}
-		
-		// 턴 종료
-		EndPlayerTurn(InChattingPlayerController);
+		// 승리/무승부 처리
+		JudgeGame(InChattingPlayerController, StrikeCount);
 	}
 	else
 	{
@@ -353,7 +324,7 @@ void AMPGameModeBase::PrintChatMessage(AMPPlayerController* InChattingPlayerCont
 	{
 		PlayerState->bHasGuessedThisTurn = true;
 	}
-	
+
 	// 최종 메시지 브로드캐스
 	BroadcastChatMessageByRPC(FinalMessage);
 }
@@ -402,6 +373,11 @@ void AMPGameModeBase::JudgeGame(AMPPlayerController* InChattingPlayerController,
 			3.0f,                      
 			false                       
 		);
+	}
+	else
+	{
+		// 승리 / 무승부 아니면 다음 플레이어 턴 진행
+		EndPlayerTurn(InChattingPlayerController);
 	}
 }
 
@@ -463,9 +439,11 @@ void AMPGameModeBase::ResetGame()
 	SecretNumber = GenerateSecretNumber();
 
 	// 모든 플레이어 시도 횟수 초기화 (1부터 시작)
-	for (const auto& MPPlayerController : AllPlayerControllers)
+	for (const auto& PlayerController : AllPlayerControllers)
 	{
-		ASSIGN_VALID(AMPPlayerState, EachPlayerState, MPPlayerController->GetPlayerState<AMPPlayerState>())
+		PlayerController->NotificationText = FText::FromString(TEXT("Restart Game"));;
+		
+		ASSIGN_VALID(AMPPlayerState, EachPlayerState, PlayerController->GetPlayerState<AMPPlayerState>())
 		{
 			EachPlayerState->CurrentGuessCount = 1;
 		}

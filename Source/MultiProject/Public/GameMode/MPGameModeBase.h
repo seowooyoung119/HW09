@@ -13,11 +13,21 @@ class MULTIPROJECT_API AMPGameModeBase : public AGameModeBase
 {
 	GENERATED_BODY()
 
+//----------------------------------------------------------------------------------------------------------------------
+	
+#pragma region FUNCTION_Override
 public:
 	AMPGameModeBase();
 	virtual void BeginPlay() override;
 	virtual void OnPostLogin(AController* NewPlayer) override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+		
+#pragma endregion
+	
+//----------------------------------------------------------------------------------------------------------------------
+
+#pragma region FUNCTION
+public:
 	
 	// 랜덤 숫자 3개 생성 
 	static FString GenerateSecretNumber();
@@ -65,6 +75,11 @@ public:
 	// 게임 리셋
 	void ResetGame();
 
+#pragma endregion
+
+//----------------------------------------------------------------------------------------------------------------------
+	
+#pragma region VARIABLE
 protected:
 
 	// 정답 숫자
@@ -86,12 +101,12 @@ private:
 	// 리셋 게임 타이머 핸들
 	FTimerHandle TimerHandle_ResetGame;
 	
-	// 턴제 타이머 핸들러
+	// 플레이어 턴제 타이머 핸들 관리 컨테이너
 	UPROPERTY()
 	TMap<AMPPlayerController*, FTimerHandle> PlayerTurnTimers;
 
 	// 턴 제한 시간 (초)
 	float MaxTurnTime;
-	
 
+#pragma endregion 
 };
